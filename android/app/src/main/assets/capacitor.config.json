@@ -1,0 +1,9 @@
+{
+	"appId": "com.kingvin.club",
+	"appName": "Kim Lân",
+	"webDir": "mobile-shell",
+	"android": {
+		"allowMixedContent": false,
+		"backgroundColor": "#08150f"
+	}
+}
