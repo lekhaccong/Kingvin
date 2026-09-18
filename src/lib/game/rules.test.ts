@@ -100,7 +100,7 @@ describe("baucua / xocdia settlement", () => {
     });
   });
 
-  it("pays even/odd and 8x on four-red", () => {
+  it("pays even/odd, 4x on mixed colors and 16x on four of a color", () => {
     const four = {
       kind: "xocdia" as const,
       coins: [1, 1, 1, 1] as [1, 1, 1, 1],
@@ -113,11 +113,21 @@ describe("baucua / xocdia settlement", () => {
     });
     assert.deepEqual(settleXocDia("red4", 1000, four), {
       status: "won",
-      payout: 8000,
+      payout: 16000,
     });
     assert.deepEqual(settleXocDia("le", 1000, four), {
       status: "lost",
       payout: 0,
+    });
+    const three = { ...four, coins: [1, 1, 1, 0] as [1, 1, 1, 0], red: 3, even: false };
+    assert.deepEqual(settleXocDia("red3", 1000, three), {
+      status: "won",
+      payout: 4000,
+    });
+    const one = { ...four, coins: [1, 0, 0, 0] as [1, 0, 0, 0], red: 1, even: false };
+    assert.deepEqual(settleXocDia("red1", 1000, one), {
+      status: "won",
+      payout: 4000,
     });
   });
 });
