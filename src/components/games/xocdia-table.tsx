@@ -1,21 +1,20 @@
 import { Link } from "@tanstack/react-router";
+import { CircleHelp, History, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { ChipRow } from "@/components/club/chips";
 import { TimerRing } from "@/components/club/timer-ring";
-import { BetPad } from "@/components/club/bet-pad";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import type { XocDiaPayload } from "@/lib/game/rules";
 import { cn, formatXu } from "@/lib/utils";
-import {
-  isPlayerView,
-  remainingOf,
-  totalForPhase,
-  useClock,
-  useGame,
-} from "@/hooks/use-game";
+import { isPlayerView, remainingOf, totalForPhase, useClock, useGame } from "@/hooks/use-game";
+
+const COLOR_MARKETS = [
+  { market: "red4", coins: [1, 1, 1, 1], odds: "1:16" },
+  { market: "red1", coins: [0, 0, 0, 1], odds: "1:4" },
+  { market: "red3", coins: [1, 1, 1, 0], odds: "1:4" },
+  { market: "red0", coins: [0, 0, 0, 0], odds: "1:16" },
+] as const;
 
 export function XocDiaTable() {
   const { user } = useCurrentUserState();
@@ -24,9 +23,10 @@ export function XocDiaTable() {
   const now = useClock();
   const remaining = remainingOf(snap, now, receivedAt);
   const [chip, setChip] = useState(1000);
+  const [showHistory, setShowHistory] = useState(false);
   const payload = snap?.payload?.kind === "xocdia" ? (snap.payload as XocDiaPayload) : null;
   const my = isPlayerView(snap) ? snap.myBets : [];
-  const mine = (m: string) => my.find((b) => b.market === m)?.amount ?? 0;
+  const mine = (market: string) => my.find((b) => b.market === market)?.amount ?? 0;
   const canBet = snap?.phase === "betting" && authed && !pending;
   const spinning = snap?.phase === "lock";
   const coins = payload?.coins ?? [0, 1, 0, 1];
@@ -42,103 +42,63 @@ export function XocDiaTable() {
   }
 
   return (
-    <div className="space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <div className="xoc-page space-y-3">
+      <header className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted">Kim Lân mini game</p>
+          <p className="text-xs uppercase tracking-[0.24em] text-muted">Kim Lân mini game</p>
           <h1 className="game-title font-display text-4xl tracking-tight text-gold">Xóc Đĩa</h1>
         </div>
-        {isPlayerView(snap) ? (
-          <p className="font-display text-3xl tabular-nums">{formatXu(snap.balance)}</p>
-        ) : (
-          <Link to="/login" className="text-sm text-accent">
-            Đăng nhập để chơi
-          </Link>
-        )}
+        {isPlayerView(snap) ? <p className="font-display text-2xl tabular-nums text-gold sm:text-3xl">{formatXu(snap.balance)}</p> : <Link to="/login" className="text-sm text-accent">Đăng nhập để chơi</Link>}
       </header>
-      <Card className="game-stage">
-        <CardContent className="relative space-y-5 p-3 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <TimerRing
-              phase={snap?.phase ?? "betting"}
-              remainingMs={remaining}
-              totalMs={totalForPhase(snap, snap?.phase ?? "betting")}
-            />
-            <Badge tone="muted">Ván #{snap?.roundId ?? "—"}</Badge>
+
+      <section className="xoc-shell">
+        {showHistory ? <XocHistory history={snap?.history ?? []} /> : null}
+        <div className="xoc-toolbar">
+          <button type="button" className={cn("xoc-round-button", showHistory && "is-active")} onClick={() => setShowHistory((v) => !v)} aria-label="Bật tắt bảng lịch sử"><History size={22} /></button>
+          <span className="xoc-round-id">#{snap?.roundId ?? "—"}</span>
+          <Link to="/" className="xoc-close" aria-label="Đóng Xóc Đĩa"><X size={28} /></Link>
+        </div>
+
+        <div className="xoc-board">
+          <div className="xoc-main-bets">
+            <XocBet market="chan" title="Chẵn" odds="1:2" pot={snap?.pots.chan ?? 0} players={snap?.playerCounts.chan ?? 0} mine={mine("chan")} active={!!payload?.even && snap?.phase === "result"} disabled={!canBet && authed} onClick={onBet} />
+            <ResultPlate phase={snap?.phase ?? "betting"} coins={coins} spinning={spinning} remaining={remaining} total={totalForPhase(snap, snap?.phase ?? "betting")} />
+            <XocBet market="le" title="Lẻ" odds="1:2" pot={snap?.pots.le ?? 0} players={snap?.playerCounts.le ?? 0} mine={mine("le")} active={!!payload && !payload.even && snap?.phase === "result"} disabled={!canBet && authed} onClick={onBet} redTitle />
           </div>
-          <div className="result-well flex flex-col items-center gap-4 py-7">
-            <div className="grid size-48 place-items-center rounded-full border-4 border-accent/55 bg-bg shadow-[var(--shadow-soft)]">
-              {snap?.phase === "betting" ? (
-                <div className="grid size-28 place-items-center rounded-full border border-border bg-surface-2 text-xs uppercase tracking-widest text-muted">Bát úp</div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {coins.map((c, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "coin",
-                        spinning ? "is-spinning" : c ? "coin-red" : "coin-white",
-                      )}
-                    >
-                      {spinning ? "" : c ? "Đ" : "T"}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {payload && snap?.phase === "result" ? (
-              <p className="text-sm text-muted">
-                {payload.red} đỏ · {payload.even ? "Chẵn" : "Lẻ"}
-              </p>
-            ) : (
-              <p className="text-sm text-muted">
-                {snap?.phase === "lock" ? "Đang xóc đĩa" : "Đặt Chẵn hoặc Lẻ"}
-              </p>
-            )}
+
+          <div className="xoc-color-bets">
+            {COLOR_MARKETS.map((item) => <XocColorBet key={item.market} {...item} pot={snap?.pots[item.market] ?? 0} players={snap?.playerCounts[item.market] ?? 0} mine={mine(item.market)} active={payload?.red === item.coins.reduce<number>((sum, coin) => sum + coin, 0) && snap?.phase === "result"} disabled={!canBet && authed} onClick={onBet} />)}
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
-            <BetPad
-              label="Chẵn"
-              hint="0 · 2 · 4 đỏ"
-              pot={snap?.pots.chan ?? 0}
-              mine={mine("chan")}
-              win={!!payload && payload.even && snap?.phase === "result"}
-              disabled={!canBet && authed}
-              onClick={() => onBet("chan")}
-            />
-            <BetPad
-              label="Lẻ"
-              hint="1 · 3 đỏ"
-              pot={snap?.pots.le ?? 0}
-              mine={mine("le")}
-              win={!!payload && !payload.even && snap?.phase === "result"}
-              disabled={!canBet && authed}
-              onClick={() => onBet("le")}
-            />
+
+          <div className="xoc-road" aria-label="Kết quả gần đây">
+            {(snap?.history ?? []).filter((item): item is XocDiaPayload => item.kind === "xocdia").slice(0, 18).reverse().map((item, index) => <span key={index} className={item.red >= 2 ? "is-red" : "is-white"} />)}
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
-            <BetPad
-              label="4 đỏ"
-              hint="x8"
-              pot={snap?.pots.red4 ?? 0}
-              mine={mine("red4")}
-              win={payload?.red === 4 && snap?.phase === "result"}
-              disabled={!canBet && authed}
-              onClick={() => onBet("red4")}
-            />
-            <BetPad
-              label="4 trắng"
-              hint="x8"
-              pot={snap?.pots.red0 ?? 0}
-              mine={mine("red0")}
-              win={payload?.red === 0 && snap?.phase === "result"}
-              disabled={!canBet && authed}
-              onClick={() => onBet("red0")}
-            />
-          </div>
+        </div>
+
+        <div className="xoc-footer">
+          <button type="button" className="xoc-help" aria-label="Hướng dẫn"><CircleHelp size={25} /></button>
           <ChipRow value={chip} onChange={setChip} disabled={pending} />
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
+}
+
+function XocBet({ market, title, odds, pot, players, mine, active, disabled, onClick, redTitle = false }: { market: string; title: string; odds: string; pot: number; players: number; mine: number; active: boolean; disabled: boolean; onClick: (market: string) => void; redTitle?: boolean }) {
+  return <button type="button" className={cn("xoc-bet xoc-bet-main", active && "is-winner")} disabled={disabled} onClick={() => onClick(market)}><span className="xoc-players"><Users size={14} /> {players}</span><span className={cn("xoc-bet-title", redTitle && "is-red")}>{title}</span><span className="xoc-odds">{odds}</span><strong>{formatXu(pot)}</strong>{mine > 0 ? <small>Bạn: {formatXu(mine)}</small> : null}</button>;
+}
+
+function XocColorBet({ market, coins, odds, pot, players, mine, active, disabled, onClick }: { market: string; coins: readonly number[]; odds: string; pot: number; players: number; mine: number; active: boolean; disabled: boolean; onClick: (market: string) => void }) {
+  return <button type="button" className={cn("xoc-bet xoc-bet-color", active && "is-winner")} disabled={disabled} onClick={() => onClick(market)}><span className="xoc-players"><Users size={13} /> {players}</span><span className="xoc-color-pattern">{coins.map((coin, index) => <i key={index} className={coin ? "is-red" : "is-white"} />)}</span><span className="xoc-odds">{odds}</span><strong>{formatXu(pot)}</strong>{mine > 0 ? <small>Bạn: {formatXu(mine)}</small> : null}</button>;
+}
+
+function ResultPlate({ phase, coins, spinning, remaining, total }: { phase: string; coins: readonly number[]; spinning: boolean; remaining: number; total: number }) {
+  return <div className="xoc-result-plate">{phase === "betting" ? <TimerRing phase="betting" remainingMs={remaining} totalMs={total} /> : <div className="xoc-result-coins">{coins.map((coin, index) => <i key={index} className={cn(coin ? "is-red" : "is-white", spinning && "is-spinning")} />)}</div>}</div>;
+}
+
+function XocHistory({ history }: { history: { kind?: string; red?: number; even?: boolean }[] }) {
+  const items = history.filter((item) => item.kind === "xocdia").slice(0, 24).reverse();
+  const even = items.filter((item) => item.even).length;
+  const odd = items.length - even;
+  return <div className="xoc-history"><div className="xoc-history-summary"><b>CHẴN {items.length ? Math.round((even / items.length) * 100) : 0}%</b><b>LẺ {items.length ? Math.round((odd / items.length) * 100) : 0}%</b></div><div className="xoc-history-grid">{items.map((item, index) => <span key={index} className={(item.red ?? 0) >= 2 ? "is-red" : "is-white"}>{item.red}</span>)}</div></div>;
 }
