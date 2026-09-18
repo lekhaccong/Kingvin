@@ -113,12 +113,22 @@ export function settleXocDia(
   }
   if (market === "red4") {
     return p.red === 4
-      ? { status: "won", payout: amount * 8 }
+      ? { status: "won", payout: amount * 16 }
+      : { status: "lost", payout: 0 };
+  }
+  if (market === "red3") {
+    return p.red === 3
+      ? { status: "won", payout: amount * 4 }
+      : { status: "lost", payout: 0 };
+  }
+  if (market === "red1") {
+    return p.red === 1
+      ? { status: "won", payout: amount * 4 }
       : { status: "lost", payout: 0 };
   }
   if (market === "red0") {
     return p.red === 0
-      ? { status: "won", payout: amount * 8 }
+      ? { status: "won", payout: amount * 16 }
       : { status: "lost", payout: 0 };
   }
   return { status: "lost", payout: 0 };
@@ -185,6 +195,8 @@ export function isLegalMarket(
     market === "chan" ||
     market === "le" ||
     market === "red4" ||
+    market === "red3" ||
+    market === "red1" ||
     market === "red0"
   );
 }
