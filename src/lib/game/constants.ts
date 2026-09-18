@@ -6,7 +6,7 @@ export type Phase = (typeof PHASES)[number];
 
 /** Live round timings. Short enough to play; long enough to place a bet. */
 export const TIMING = {
-  betMs: 18_000,
+  betMs: 28_000,
   lockMs: 4_000,
   resultMs: 8_000,
 } as const;
