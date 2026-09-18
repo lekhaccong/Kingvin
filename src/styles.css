@@ -35,6 +35,7 @@
 
 .xoc-bowl{display:grid;place-items:center;width:132px;height:132px;border:5px solid #d9e6e8;border-radius:50%;background:radial-gradient(circle at 35% 28%,#f7fbfb,#b8cdd2 58%,#728c94);box-shadow:0 10px 22px #00343e99,inset 0 -8px 14px #21434b55;color:#17343b;font-size:11px;font-weight:950;letter-spacing:.08em}.xoc-bowl.is-shaking{animation:xoc-shake .14s linear infinite}.xoc-result-plate.is-open{animation:xoc-reveal .32s ease-out}@keyframes xoc-shake{25%{transform:translate(-3px,2px) rotate(-2deg)}75%{transform:translate(3px,-2px) rotate(2deg)}}@keyframes xoc-reveal{from{transform:scale(.88);filter:brightness(1.6)}to{transform:scale(1);filter:brightness(1)}}
 .xoc-bet-main{display:grid;place-items:center}.xoc-bet-color{display:grid;place-items:center}.xoc-bet-color .xoc-color-pattern{position:static;display:grid;grid-template-columns:repeat(2,22px);grid-template-rows:repeat(2,22px);gap:7px}.xoc-bet-color .xoc-color-pattern i{width:22px;height:22px}
+.xoc-my-bet{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);white-space:nowrap;border-radius:999px;background:#073f49cc;padding:3px 8px;color:#fff2a8;font-size:11px;font-weight:900;text-shadow:none}
 @media(max-width:700px){.xoc-bowl{width:76px;height:76px;border-width:3px;font-size:8px}}
 @media(max-width:700px){.xoc-bet-color .xoc-color-pattern{grid-template-columns:repeat(2,16px);grid-template-rows:repeat(2,16px);gap:5px}.xoc-bet-color .xoc-color-pattern i{width:16px;height:16px}}
 
