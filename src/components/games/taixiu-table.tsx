@@ -1,15 +1,14 @@
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChipRow } from "@/components/club/chips";
 import { DiceRow } from "@/components/club/dice";
 import { TimerRing } from "@/components/club/timer-ring";
-import { BetPad } from "@/components/club/bet-pad";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import type { TaiXiuPayload } from "@/lib/game/rules";
-import { formatXu } from "@/lib/utils";
+import { cn, formatXu } from "@/lib/utils";
 import {
   isPlayerView,
   remainingOf,
@@ -35,15 +34,19 @@ export function TaiXiuTable() {
   const now = useClock();
   const remaining = remainingOf(snap, now, receivedAt);
   const [chip, setChip] = useState(1000);
+  const [opened, setOpened] = useState(false);
 
   const payload = snap?.payload?.kind === "taixiu" ? (snap.payload as TaiXiuPayload) : null;
-  const spinning = snap?.phase === "lock";
-  const dice = payload
-    ? [payload.d1, payload.d2, payload.d3]
-    : [1, 2, 3];
   const my = isPlayerView(snap) ? snap.myBets : [];
-  const mine = (m: string) => my.find((b) => b.market === m)?.amount ?? 0;
+  const mine = (m: string) => my.filter((b) => b.market === m).reduce((sum, b) => sum + b.amount, 0);
   const canBet = snap?.phase === "betting" && authed && !pending;
+
+  useEffect(() => setOpened(false), [snap?.roundId]);
+  useEffect(() => {
+    if (snap?.phase !== "result") return;
+    const id = window.setTimeout(() => setOpened(true), 2_000);
+    return () => window.clearTimeout(id);
+  }, [snap?.phase, snap?.roundId]);
 
   async function onBet(market: string) {
     if (!authed) {
@@ -89,77 +92,27 @@ export function TaiXiuTable() {
                   <Badge tone={payload.side === "tai" ? "tai" : "xiu"}>
                     {payload.side === "tai" ? "Tài" : "Xỉu"} {payload.sum}
                   </Badge>
-                  {payload.triple ? <Badge tone="muted">Ba mặt — hoàn xu</Badge> : null}
+                  {payload.triple ? <Badge tone="muted">Bộ ba · Hũ may mắn</Badge> : null}
                 </>
               ) : null}
             </div>
           </div>
 
-          <div className="result-well px-4 py-6">
-            {snap?.phase === "betting" && !payload ? (
-              <div className="flex flex-col items-center py-2">
-                <div className="grid size-36 place-items-center rounded-full border-4 border-accent/60 bg-bg shadow-[var(--shadow-soft)]">
-                  <div className="grid size-24 place-items-center rounded-full border border-border bg-surface text-xs uppercase tracking-widest text-muted">Bát úp</div>
-                </div>
-              </div>
-            ) : (
-              <DiceRow
-                values={
-                  payload ? [payload.d1, payload.d2, payload.d3] : dice
-                }
-                spinning={spinning}
-              />
-            )}
+          <div className="taixiu-board">
+            <TaiXiuBet market="tai" label="TÀI" mine={mine("tai")} win={payload?.side === "tai" && snap?.phase === "result"} disabled={!canBet && authed} onBet={onBet} />
+            <button type="button" className="taixiu-result" disabled={snap?.phase !== "result" || opened} onClick={() => setOpened(true)}>
+              {snap?.phase === "betting" ? <TimerRing phase="betting" remainingMs={remaining} totalMs={totalForPhase(snap, "betting")} /> : snap?.phase === "lock" ? <div className="xoc-bowl is-shaking"><span>ĐANG XÓC</span></div> : opened && payload ? <DiceRow values={[payload.d1, payload.d2, payload.d3]} spinning={false} /> : <div className="xoc-bowl"><span>CHẠM MỞ BÁT</span></div>}
+            </button>
+            <TaiXiuBet market="xiu" label="XỈU" mine={mine("xiu")} win={payload?.side === "xiu" && snap?.phase === "result"} disabled={!canBet && authed} onBet={onBet} />
+          </div>
+          <div className="text-center">
             <p className="mt-2 text-center text-sm text-muted">
               {snap?.phase === "betting" && "Đặt Tài hoặc Xỉu trước khi khóa cửa."}
-              {snap?.phase === "lock" && "Đang mở bát — cược đã khóa."}
+              {snap?.phase === "lock" && "Đang xóc — cược đã khóa."}
               {snap?.phase === "result" && payload
-                ? payload.triple
-                  ? `Ba ${payload.d1} — Tài/Xỉu hoàn xu.`
-                  : `Tổng ${payload.sum} · ${payload.side === "tai" ? "Tài" : "Xỉu"}`
+                ? `Tổng ${payload.sum} · ${payload.side === "tai" ? "Tài" : "Xỉu"}${payload.triple ? " · Bộ ba" : ""}`
                 : null}
             </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
-            <BetPad
-              tone="xiu"
-              label="XỈU"
-              hint="4 — 10"
-              pot={snap?.pots.xiu ?? 0}
-              mine={mine("xiu")}
-              win={payload?.side === "xiu" && !payload.triple && snap?.phase === "result"}
-              disabled={!canBet && authed}
-              onClick={() => onBet("xiu")}
-            />
-            <BetPad
-              tone="tai"
-              label="TÀI"
-              hint="11 — 17"
-              pot={snap?.pots.tai ?? 0}
-              mine={mine("tai")}
-              win={payload?.side === "tai" && !payload.triple && snap?.phase === "result"}
-              disabled={!canBet && authed}
-              onClick={() => onBet("tai")}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
-            <BetPad
-              label="Chẵn"
-              pot={snap?.pots.chan ?? 0}
-              mine={mine("chan")}
-              win={!!payload && payload.even && !payload.triple && snap?.phase === "result"}
-              disabled={!canBet && authed}
-              onClick={() => onBet("chan")}
-            />
-            <BetPad
-              label="Lẻ"
-              pot={snap?.pots.le ?? 0}
-              mine={mine("le")}
-              win={!!payload && !payload.even && !payload.triple && snap?.phase === "result"}
-              disabled={!canBet && authed}
-              onClick={() => onBet("le")}
-            />
           </div>
 
           <div className="space-y-2">
@@ -174,6 +127,10 @@ export function TaiXiuTable() {
       </Card>
     </div>
   );
+}
+
+function TaiXiuBet({ market, label, mine, win, disabled, onBet }: { market: string; label: string; mine: number; win: boolean; disabled: boolean; onBet: (market: string) => void }) {
+  return <button type="button" disabled={disabled} onClick={() => onBet(market)} className={cn("taixiu-side", market === "tai" ? "is-tai" : "is-xiu", win && "is-winner")}><strong>{label}</strong>{mine > 0 ? <span>Đã cược: {formatXu(mine)}</span> : null}</button>;
 }
 
 function Road({ history }: { history: { kind?: string; side?: string; sum?: number; triple?: boolean }[] }) {
