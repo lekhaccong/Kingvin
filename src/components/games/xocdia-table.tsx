@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { CircleHelp, History, Users, X } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChipRow } from "@/components/club/chips";
 import { TimerRing } from "@/components/club/timer-ring";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -24,12 +24,23 @@ export function XocDiaTable() {
   const remaining = remainingOf(snap, now, receivedAt);
   const [chip, setChip] = useState(1000);
   const [showHistory, setShowHistory] = useState(false);
+  const [opened, setOpened] = useState(false);
   const payload = snap?.payload?.kind === "xocdia" ? (snap.payload as XocDiaPayload) : null;
   const my = isPlayerView(snap) ? snap.myBets : [];
   const mine = (market: string) => my.find((b) => b.market === market)?.amount ?? 0;
   const canBet = snap?.phase === "betting" && authed && !pending;
   const spinning = snap?.phase === "lock";
   const coins = payload?.coins ?? [0, 1, 0, 1];
+
+  useEffect(() => {
+    setOpened(false);
+  }, [snap?.roundId]);
+
+  useEffect(() => {
+    if (snap?.phase !== "result") return;
+    const id = window.setTimeout(() => setOpened(true), 2_000);
+    return () => window.clearTimeout(id);
+  }, [snap?.phase, snap?.roundId]);
 
   async function onBet(market: string) {
     if (!authed) {
@@ -62,7 +73,7 @@ export function XocDiaTable() {
         <div className="xoc-board">
           <div className="xoc-main-bets">
             <XocBet market="chan" title="Chẵn" odds="1:2" pot={snap?.pots.chan ?? 0} players={snap?.playerCounts.chan ?? 0} mine={mine("chan")} active={!!payload?.even && snap?.phase === "result"} disabled={!canBet && authed} onClick={onBet} />
-            <ResultPlate phase={snap?.phase ?? "betting"} coins={coins} spinning={spinning} remaining={remaining} total={totalForPhase(snap, snap?.phase ?? "betting")} />
+            <ResultPlate phase={snap?.phase ?? "betting"} coins={coins} spinning={spinning} opened={opened} onOpen={() => setOpened(true)} remaining={remaining} total={totalForPhase(snap, snap?.phase ?? "betting")} />
             <XocBet market="le" title="Lẻ" odds="1:2" pot={snap?.pots.le ?? 0} players={snap?.playerCounts.le ?? 0} mine={mine("le")} active={!!payload && !payload.even && snap?.phase === "result"} disabled={!canBet && authed} onClick={onBet} redTitle />
           </div>
 
@@ -92,8 +103,11 @@ function XocColorBet({ market, coins, odds, pot, players, mine, active, disabled
   return <button type="button" className={cn("xoc-bet xoc-bet-color", active && "is-winner")} disabled={disabled} onClick={() => onClick(market)}><span className="xoc-players"><Users size={13} /> {players}</span><span className="xoc-color-pattern">{coins.map((coin, index) => <i key={index} className={coin ? "is-red" : "is-white"} />)}</span><span className="xoc-odds">{odds}</span><strong>{formatXu(pot)}</strong>{mine > 0 ? <small>Bạn: {formatXu(mine)}</small> : null}</button>;
 }
 
-function ResultPlate({ phase, coins, spinning, remaining, total }: { phase: string; coins: readonly number[]; spinning: boolean; remaining: number; total: number }) {
-  return <div className="xoc-result-plate">{phase === "betting" ? <TimerRing phase="betting" remainingMs={remaining} totalMs={total} /> : <div className="xoc-result-coins">{coins.map((coin, index) => <i key={index} className={cn(coin ? "is-red" : "is-white", spinning && "is-spinning")} />)}</div>}</div>;
+function ResultPlate({ phase, coins, spinning, opened, onOpen, remaining, total }: { phase: string; coins: readonly number[]; spinning: boolean; opened: boolean; onOpen: () => void; remaining: number; total: number }) {
+  if (phase === "betting") return <div className="xoc-result-plate"><TimerRing phase="betting" remainingMs={remaining} totalMs={total} /></div>;
+  if (spinning) return <div className="xoc-result-plate"><div className="xoc-bowl is-shaking"><span>ĐANG XÓC</span></div></div>;
+  if (!opened) return <button type="button" className="xoc-result-plate" onClick={onOpen} aria-label="Mở bát"><div className="xoc-bowl"><span>CHẠM MỞ BÁT</span></div></button>;
+  return <div className="xoc-result-plate is-open"><div className="xoc-result-coins">{coins.map((coin, index) => <i key={index} className={coin ? "is-red" : "is-white"} />)}</div></div>;
 }
 
 function XocHistory({ history }: { history: { kind?: string; red?: number; even?: boolean }[] }) {
