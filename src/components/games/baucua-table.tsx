@@ -62,11 +62,11 @@ export function BauCuaTable() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted">Bàn dân gian</p>
-          <h1 className="font-display text-4xl tracking-tight">Bầu Cua</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted">Kim Lân mini game</p>
+          <h1 className="game-title font-display text-4xl tracking-tight text-gold">Bầu Cua</h1>
         </div>
         {isPlayerView(snap) ? (
           <p className="font-display text-3xl tabular-nums">{formatXu(snap.balance)}</p>
@@ -76,8 +76,8 @@ export function BauCuaTable() {
           </Link>
         )}
       </header>
-      <Card>
-        <CardContent className="space-y-6 p-5 sm:p-7">
+      <Card className="game-stage">
+        <CardContent className="relative space-y-5 p-3 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <TimerRing
               phase={snap?.phase ?? "betting"}
@@ -86,12 +86,12 @@ export function BauCuaTable() {
             />
             <Badge tone="muted">Ván #{snap?.roundId ?? "—"}</Badge>
           </div>
-          <div className="flex justify-center gap-3 rounded-[var(--radius-lg)] border border-border bg-bg py-6">
+          <div className="result-well flex justify-center gap-3 py-6">
             {(payload?.faces ?? ["nai", "bau", "ga"]).map((f, i) => (
               <div
                 key={i}
                 className={cn(
-                  "grid size-20 place-items-center rounded-[var(--radius-md)] border border-border bg-surface",
+                  "grid size-20 place-items-center rounded-[var(--radius-md)] border border-accent/25 bg-surface shadow-[var(--shadow-soft)]",
                   snap?.phase === "lock" && "animate-pulse",
                 )}
               >
@@ -108,7 +108,7 @@ export function BauCuaTable() {
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
             {BAUCUA_FACES.map((face) => {
               const count = payload?.faces.filter((x) => x === face).length ?? 0;
               const win = snap?.phase === "result" && count > 0;
@@ -119,7 +119,7 @@ export function BauCuaTable() {
                   disabled={!canBet && authed}
                   onClick={() => onBet(face)}
                   className={cn(
-                    "flex min-h-24 flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border border-border bg-bg-elevated p-3",
+                    "bet-cell bet-cell-neutral flex min-h-28 flex-col items-center justify-center gap-1 p-3",
                     win && "ring-2 ring-win",
                   )}
                 >

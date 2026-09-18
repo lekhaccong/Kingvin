@@ -56,11 +56,11 @@ export function TaiXiuTable() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted">Bàn chính</p>
-          <h1 className="font-display text-4xl tracking-tight">Tài Xỉu</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted">Kim Lân mini game</p>
+          <h1 className="game-title font-display text-4xl tracking-tight text-gold">Tài Xỉu</h1>
         </div>
         {isPlayerView(snap) ? (
           <div className="text-right">
@@ -74,8 +74,8 @@ export function TaiXiuTable() {
         )}
       </header>
 
-      <Card className="overflow-hidden">
-        <CardContent className="space-y-6 p-5 sm:p-7">
+      <Card className="game-stage">
+        <CardContent className="relative space-y-5 p-3 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <TimerRing
               phase={snap?.phase ?? "betting"}
@@ -95,15 +95,12 @@ export function TaiXiuTable() {
             </div>
           </div>
 
-          <div className="rounded-[var(--radius-lg)] border border-border bg-bg px-4 py-6">
+          <div className="result-well px-4 py-6">
             {snap?.phase === "betting" && !payload ? (
               <div className="flex flex-col items-center py-2">
-                <div className="grid size-36 place-items-center rounded-full border border-border-strong bg-surface-2 shadow-[var(--shadow-soft)]">
-                  <div className="size-24 rounded-full border border-border bg-surface" />
+                <div className="grid size-36 place-items-center rounded-full border-4 border-accent/60 bg-bg shadow-[var(--shadow-soft)]">
+                  <div className="grid size-24 place-items-center rounded-full border border-border bg-surface text-xs uppercase tracking-widest text-muted">Bát úp</div>
                 </div>
-                <p className="mt-4 text-xs uppercase tracking-[0.18em] text-subtle">
-                  Bát úp
-                </p>
               </div>
             ) : (
               <DiceRow
@@ -124,10 +121,10 @@ export function TaiXiuTable() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <BetPad
               tone="xiu"
-              label="Xỉu"
+              label="XỈU"
               hint="4 — 10"
               pot={snap?.pots.xiu ?? 0}
               mine={mine("xiu")}
@@ -137,7 +134,7 @@ export function TaiXiuTable() {
             />
             <BetPad
               tone="tai"
-              label="Tài"
+              label="TÀI"
               hint="11 — 17"
               pot={snap?.pots.tai ?? 0}
               mine={mine("tai")}
@@ -146,7 +143,7 @@ export function TaiXiuTable() {
               onClick={() => onBet("tai")}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <BetPad
               label="Chẵn"
               pot={snap?.pots.chan ?? 0}
@@ -184,7 +181,7 @@ function Road({ history }: { history: { kind?: string; side?: string; sum?: numb
   return (
     <div>
       <p className="mb-2 text-xs uppercase tracking-[0.16em] text-muted">Cầu gần đây</p>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="history-rail flex flex-wrap gap-1.5">
         {items.length === 0 ? (
           <span className="text-sm text-subtle">Chưa có ván kết thúc.</span>
         ) : (

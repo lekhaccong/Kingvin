@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Coins, LayoutGrid, Radio, ScrollText } from "lucide-react";
+import { Coins, Dices, House, ScrollText } from "lucide-react";
 import { SignedIn, SignedOut, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
@@ -8,10 +8,10 @@ import { ClubMark } from "./mark";
 import { Disclaimer } from "./disclaimer";
 
 const NAV = [
-  { to: "/", label: "Sảnh", icon: LayoutGrid },
-  { to: "/play/taixiu", label: "Tài Xỉu", icon: Radio },
-  { to: "/play/baucua", label: "Bầu Cua", icon: Radio },
-  { to: "/play/xocdia", label: "Xóc Đĩa", icon: Radio },
+  { to: "/", label: "Sảnh", icon: House },
+  { to: "/play/taixiu", label: "Tài Xỉu", icon: Dices },
+  { to: "/play/baucua", label: "Bầu Cua", icon: Dices },
+  { to: "/play/xocdia", label: "Xóc Đĩa", icon: Dices },
   { to: "/wallet", label: "Sổ xu", icon: Coins },
 ] as const;
 
@@ -22,12 +22,13 @@ export function ClubShell({ children }: { children: ReactNode }) {
   return (
     <div className="relative min-h-dvh">
       <div className="club-grid pointer-events-none absolute inset-0 opacity-70" />
+      <div className="club-glow pointer-events-none absolute inset-x-0 top-0 h-96" />
       <header className="sticky top-0 z-20 border-b border-border bg-bg/90 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4">
           <Link to="/" className="flex items-center gap-2.5 text-fg">
-            <ClubMark className="size-8 text-accent" />
+            <span className="brand-medallion"><ClubMark className="size-7 text-gold" /></span>
             <span className="leading-none">
-              <span className="font-display text-lg tracking-tight">Kim Lân</span>
+              <span className="font-display text-xl tracking-tight text-gold">Kim Lân</span>
               <span className="ml-2 hidden text-[10px] uppercase tracking-[0.2em] text-muted sm:inline">
                 Xu ảo
               </span>
@@ -78,7 +79,7 @@ export function ClubShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="relative mx-auto w-full max-w-6xl px-4 pb-28 pt-6 md:pb-12">
+      <main className="relative mx-auto w-full max-w-6xl px-3 pb-28 pt-4 sm:px-4 md:pb-12 md:pt-6">
         {children}
         <footer className="mt-12 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-end sm:justify-between">
           <Disclaimer className="max-w-xl" />

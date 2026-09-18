@@ -27,21 +27,19 @@ export function BetPad({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex min-h-32 flex-col items-center justify-center gap-1 rounded-[var(--radius-lg)] border px-4 py-5 text-center transition-[border-color,background-color,transform] duration-150 active:scale-[0.99]",
-        tone === "tai" && "border-tai/40 bg-tai/10",
-        tone === "xiu" && "border-xiu/40 bg-xiu/10",
-        tone === "default" && "border-border bg-bg-elevated",
+        "bet-cell flex min-h-28 flex-col items-center justify-center gap-1 px-3 py-4 text-center transition-[filter,transform] duration-150 active:scale-[0.98] sm:min-h-32",
+        tone === "tai" && "bet-cell-tai",
+        tone === "xiu" && "bet-cell-xiu",
+        tone === "default" && "bet-cell-neutral",
         active && "ring-2 ring-accent/70",
         win && "ring-2 ring-win",
         disabled && "opacity-70",
       )}
     >
-      <span className="font-display text-3xl leading-none">{label}</span>
+      <span className="game-label text-3xl leading-none sm:text-4xl">{label}</span>
       {hint ? <span className="text-xs text-muted">{hint}</span> : null}
-      <span className="mt-2 text-xs uppercase tracking-[0.16em] text-subtle">
-        Tổng
-      </span>
-      <span className="tabular-nums text-sm text-fg">{formatXu(pot)}</span>
+      <span className="mt-2 text-xs uppercase tracking-[0.16em] text-muted">Tổng cược</span>
+      <span className="font-display text-base tabular-nums text-gold">{formatXu(pot)}</span>
       {mine > 0 ? (
         <span className="text-xs tabular-nums text-accent">
           Bạn: {formatXu(mine)}

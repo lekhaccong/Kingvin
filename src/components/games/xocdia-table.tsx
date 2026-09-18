@@ -42,11 +42,11 @@ export function XocDiaTable() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted">Bàn đĩa</p>
-          <h1 className="font-display text-4xl tracking-tight">Xóc Đĩa</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted">Kim Lân mini game</p>
+          <h1 className="game-title font-display text-4xl tracking-tight text-gold">Xóc Đĩa</h1>
         </div>
         {isPlayerView(snap) ? (
           <p className="font-display text-3xl tabular-nums">{formatXu(snap.balance)}</p>
@@ -56,8 +56,8 @@ export function XocDiaTable() {
           </Link>
         )}
       </header>
-      <Card>
-        <CardContent className="space-y-6 p-5 sm:p-7">
+      <Card className="game-stage">
+        <CardContent className="relative space-y-5 p-3 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <TimerRing
               phase={snap?.phase ?? "betting"}
@@ -66,10 +66,10 @@ export function XocDiaTable() {
             />
             <Badge tone="muted">Ván #{snap?.roundId ?? "—"}</Badge>
           </div>
-          <div className="flex flex-col items-center gap-4 rounded-[var(--radius-lg)] border border-border bg-bg py-8">
-            <div className="grid size-48 place-items-center rounded-full border border-border-strong bg-surface">
+          <div className="result-well flex flex-col items-center gap-4 py-7">
+            <div className="grid size-48 place-items-center rounded-full border-4 border-accent/55 bg-bg shadow-[var(--shadow-soft)]">
               {snap?.phase === "betting" ? (
-                <div className="size-28 rounded-full border border-border bg-surface-2" />
+                <div className="grid size-28 place-items-center rounded-full border border-border bg-surface-2 text-xs uppercase tracking-widest text-muted">Bát úp</div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
                   {coins.map((c, i) => (
@@ -96,7 +96,7 @@ export function XocDiaTable() {
               </p>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <BetPad
               label="Chẵn"
               hint="0 · 2 · 4 đỏ"
@@ -116,7 +116,7 @@ export function XocDiaTable() {
               onClick={() => onBet("le")}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <BetPad
               label="4 đỏ"
               hint="x8"
