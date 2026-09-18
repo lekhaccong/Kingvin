@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChipRow } from "@/components/club/chips";
 import { TimerRing } from "@/components/club/timer-ring";
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,10 +46,18 @@ export function BauCuaTable() {
   const now = useClock();
   const remaining = remainingOf(snap, now, receivedAt);
   const [chip, setChip] = useState(1000);
+  const [opened, setOpened] = useState(false);
   const payload = snap?.payload?.kind === "baucua" ? (snap.payload as BauCuaPayload) : null;
   const my = isPlayerView(snap) ? snap.myBets : [];
-  const mine = (m: string) => my.find((b) => b.market === m)?.amount ?? 0;
+  const mine = (m: string) => my.filter((b) => b.market === m).reduce((sum, b) => sum + b.amount, 0);
   const canBet = snap?.phase === "betting" && authed && !pending;
+
+  useEffect(() => setOpened(false), [snap?.roundId]);
+  useEffect(() => {
+    if (snap?.phase !== "result") return;
+    const id = window.setTimeout(() => setOpened(true), 2_000);
+    return () => window.clearTimeout(id);
+  }, [snap?.phase, snap?.roundId]);
 
   async function onBet(market: string) {
     if (!authed) {
@@ -86,29 +94,11 @@ export function BauCuaTable() {
             />
             <Badge tone="muted">Ván #{snap?.roundId ?? "—"}</Badge>
           </div>
-          <div className="result-well flex justify-center gap-3 py-6">
-            {(payload?.faces ?? ["nai", "bau", "ga"]).map((f, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "grid size-20 place-items-center rounded-[var(--radius-md)] border border-accent/25 bg-surface shadow-[var(--shadow-soft)]",
-                  snap?.phase === "lock" && "animate-pulse",
-                )}
-              >
-                {snap?.phase === "result" || payload ? (
-                  <div className="flex flex-col items-center">
-                    <FaceGlyph face={f as BauCuaFace} />
-                    <span className="text-[10px] text-muted">
-                      {BAUCUA_LABEL[f as BauCuaFace]}
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-muted">?</span>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+          <div className="baucua-board">
+            <button type="button" className="baucua-result" disabled={snap?.phase !== "result" || opened} onClick={() => setOpened(true)}>
+              {snap?.phase === "betting" ? <TimerRing phase="betting" remainingMs={remaining} totalMs={totalForPhase(snap, "betting")} /> : snap?.phase === "lock" ? <div className="xoc-bowl is-shaking"><span>ĐANG XÓC</span></div> : opened && payload ? <div className="baucua-dice">{payload.faces.map((face, index) => <span key={index}><FaceGlyph face={face} /></span>)}</div> : <div className="xoc-bowl"><span>CHẠM MỞ BÁT</span></div>}
+            </button>
+            <div className="baucua-faces">
             {BAUCUA_FACES.map((face) => {
               const count = payload?.faces.filter((x) => x === face).length ?? 0;
               const win = snap?.phase === "result" && count > 0;
@@ -119,21 +109,19 @@ export function BauCuaTable() {
                   disabled={!canBet && authed}
                   onClick={() => onBet(face)}
                   className={cn(
-                    "bet-cell bet-cell-neutral flex min-h-28 flex-col items-center justify-center gap-1 p-3",
-                    win && "ring-2 ring-win",
+                    "baucua-face",
+                    win && "is-winner",
                   )}
                 >
                   <FaceGlyph face={face} />
                   <span className="text-sm">{BAUCUA_LABEL[face]}</span>
-                  <span className="text-xs tabular-nums text-muted">
-                    {formatXu(snap?.pots[face] ?? 0)}
-                  </span>
                   {mine(face) > 0 ? (
-                    <span className="text-xs text-accent">{formatXu(mine(face))}</span>
+                    <span className="baucua-my-bet">Đã cược: {formatXu(mine(face))}</span>
                   ) : null}
                 </button>
               );
             })}
+            </div>
           </div>
           <ChipRow value={chip} onChange={setChip} disabled={pending} />
         </CardContent>
