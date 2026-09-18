@@ -25,7 +25,7 @@ describe("phaseAt", () => {
 });
 
 describe("taixiu settlement", () => {
-  it("pays 1:1 on tài / xỉu and pushes triples", () => {
+  it("pays 1:1 on tài / xỉu including triples", () => {
     const tai = {
       kind: "taixiu" as const,
       d1: 5,
@@ -55,8 +55,8 @@ describe("taixiu settlement", () => {
       even: false,
     };
     assert.deepEqual(settleTaiXiu("xiu", 5000, triple), {
-      status: "push",
-      payout: 5000,
+      status: "won",
+      payout: 10000,
     });
   });
 
@@ -73,13 +73,8 @@ describe("taixiu settlement", () => {
       assert.equal(r.side, r.sum >= 11 ? "tai" : "xiu");
       const a = settleTaiXiu("tai", 1000, r);
       const b = settleTaiXiu("xiu", 1000, r);
-      if (r.triple) {
-        assert.equal(a.status, "push");
-        assert.equal(b.status, "push");
-      } else {
-        assert.equal(a.status === "won", r.side === "tai");
-        assert.equal(b.status === "won", r.side === "xiu");
-      }
+      assert.equal(a.status === "won", r.side === "tai");
+      assert.equal(b.status === "won", r.side === "xiu");
     }
   });
 });
