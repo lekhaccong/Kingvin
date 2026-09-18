@@ -26,6 +26,8 @@ export function XocDiaTable() {
   const [showHistory, setShowHistory] = useState(false);
   const [opened, setOpened] = useState(false);
   const payload = snap?.payload?.kind === "xocdia" ? (snap.payload as XocDiaPayload) : null;
+  const my = isPlayerView(snap) ? snap.myBets : [];
+  const mine = (market: string) => my.filter((b) => b.market === market).reduce((sum, b) => sum + b.amount, 0);
   const canBet = snap?.phase === "betting" && authed && !pending;
   const spinning = snap?.phase === "lock";
   const coins = payload?.coins ?? [0, 1, 0, 1];
@@ -70,13 +72,13 @@ export function XocDiaTable() {
 
         <div className="xoc-board">
           <div className="xoc-main-bets">
-            <XocBet market="chan" title="Chẵn" active={!!payload?.even && snap?.phase === "result"} disabled={!canBet && authed} onClick={onBet} />
+            <XocBet market="chan" title="Chẵn" mine={mine("chan")} active={!!payload?.even && snap?.phase === "result"} disabled={!canBet && authed} onClick={onBet} />
             <ResultPlate phase={snap?.phase ?? "betting"} coins={coins} spinning={spinning} opened={opened} onOpen={() => setOpened(true)} remaining={remaining} total={totalForPhase(snap, snap?.phase ?? "betting")} />
-            <XocBet market="le" title="Lẻ" active={!!payload && !payload.even && snap?.phase === "result"} disabled={!canBet && authed} onClick={onBet} redTitle />
+            <XocBet market="le" title="Lẻ" mine={mine("le")} active={!!payload && !payload.even && snap?.phase === "result"} disabled={!canBet && authed} onClick={onBet} redTitle />
           </div>
 
           <div className="xoc-color-bets">
-            {COLOR_MARKETS.map((item) => <XocColorBet key={item.market} {...item} active={payload?.red === item.coins.reduce<number>((sum, coin) => sum + coin, 0) && snap?.phase === "result"} disabled={!canBet && authed} onClick={onBet} />)}
+            {COLOR_MARKETS.map((item) => <XocColorBet key={item.market} {...item} mine={mine(item.market)} active={payload?.red === item.coins.reduce<number>((sum, coin) => sum + coin, 0) && snap?.phase === "result"} disabled={!canBet && authed} onClick={onBet} />)}
           </div>
 
           <div className="xoc-road" aria-label="Kết quả gần đây">
@@ -93,12 +95,12 @@ export function XocDiaTable() {
   );
 }
 
-function XocBet({ market, title, active, disabled, onClick, redTitle = false }: { market: string; title: string; active: boolean; disabled: boolean; onClick: (market: string) => void; redTitle?: boolean }) {
-  return <button type="button" className={cn("xoc-bet xoc-bet-main", active && "is-winner")} disabled={disabled} onClick={() => onClick(market)}><span className={cn("xoc-bet-title", redTitle && "is-red")}>{title}</span></button>;
+function XocBet({ market, title, mine, active, disabled, onClick, redTitle = false }: { market: string; title: string; mine: number; active: boolean; disabled: boolean; onClick: (market: string) => void; redTitle?: boolean }) {
+  return <button type="button" className={cn("xoc-bet xoc-bet-main", active && "is-winner")} disabled={disabled} onClick={() => onClick(market)}><span className={cn("xoc-bet-title", redTitle && "is-red")}>{title}</span>{mine > 0 ? <span className="xoc-my-bet">Đã cược: {formatXu(mine)}</span> : null}</button>;
 }
 
-function XocColorBet({ market, coins, active, disabled, onClick }: { market: string; coins: readonly number[]; odds: string; active: boolean; disabled: boolean; onClick: (market: string) => void }) {
-  return <button type="button" aria-label={`Cửa ${coins.reduce<number>((sum, coin) => sum + coin, 0)} đỏ`} className={cn("xoc-bet xoc-bet-color", active && "is-winner")} disabled={disabled} onClick={() => onClick(market)}><span className="xoc-color-pattern">{coins.map((coin, index) => <i key={index} className={coin ? "is-red" : "is-white"} />)}</span></button>;
+function XocColorBet({ market, coins, mine, active, disabled, onClick }: { market: string; coins: readonly number[]; odds: string; mine: number; active: boolean; disabled: boolean; onClick: (market: string) => void }) {
+  return <button type="button" aria-label={`Cửa ${coins.reduce<number>((sum, coin) => sum + coin, 0)} đỏ`} className={cn("xoc-bet xoc-bet-color", active && "is-winner")} disabled={disabled} onClick={() => onClick(market)}><span className="xoc-color-pattern">{coins.map((coin, index) => <i key={index} className={coin ? "is-red" : "is-white"} />)}</span>{mine > 0 ? <span className="xoc-my-bet">Đã cược: {formatXu(mine)}</span> : null}</button>;
 }
 
 function ResultPlate({ phase, coins, spinning, opened, onOpen, remaining, total }: { phase: string; coins: readonly number[]; spinning: boolean; opened: boolean; onOpen: () => void; remaining: number; total: number }) {
