@@ -1,0 +1,81 @@
+name: Test Docker Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "compose.yaml"
+      - ".env.example"
+      - "src/**"
+      - "server/**"
+      - "migrations/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - ".github/workflows/test-docker-image.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: kingvin
+          POSTGRES_USER: kingvin
+          POSTGRES_PASSWORD: test-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kingvin -d kingvin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build self-hosted image
+        run: docker build --tag kingvin:selfhost .
+
+      - name: Start image
+        run: |
+          docker run --detach --name kingvin-app \
+            --network host \
+            --env PORT=8081 \
+            --env HOST=127.0.0.1 \
+            --env DATABASE_URL=postgresql://kingvin:test-only-password@127.0.0.1:5432/kingvin \
+            --env BETTER_AUTH_URL=http://127.0.0.1:8081 \
+            --env BETTER_AUTH_SECRET=test-only-secret-with-at-least-32-characters \
+            --env VITE_AUTH_ENABLED=true \
+            kingvin:selfhost
+
+      - name: Verify HTTP and database migrations
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8081/ >/dev/null; then
+              break
+            fi
+            if ! docker inspect --format '{{.State.Running}}' kingvin-app | grep -q true; then
+              docker logs kingvin-app
+              exit 1
+            fi
+            sleep 2
+          done
+          curl --fail --show-error http://127.0.0.1:8081/ >/dev/null
+          docker run --rm --network host \
+            --env PGPASSWORD=test-only-password postgres:16-alpine \
+            psql -h 127.0.0.1 -U kingvin -d kingvin -Atc \
+            "select count(*) from _migrations" | grep -Eq '^[1-9][0-9]*$'
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs kingvin-app || true

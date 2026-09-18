@@ -97,6 +97,37 @@ function createNeonSql(): Promise<Sql> {
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
     const pool = new Pool({ connectionString: databaseUrl });
+
+    // A self-hosted server starts independently of a platform build hook, so
+    // apply the same bundled migrations at runtime before accepting queries.
+    // The bookkeeping table makes this safe on every container restart.
+    const migrations = import.meta.glob("/migrations/*.sql", {
+      query: "?raw",
+      import: "default",
+      eager: true,
+    }) as Record<string, string>;
+    const migrationClient = await pool.connect();
+    try {
+      await migrationClient.query(
+        "create table if not exists _migrations (name text primary key, applied_at timestamptz not null default now())",
+      );
+      const applied = (await migrationClient.query<{ name: string }>(
+        "select name from _migrations",
+      )).rows.map((row) => row.name);
+      for (const { name, path } of pendingMigrations(Object.keys(migrations), applied)) {
+        try {
+          await migrationClient.query("begin");
+          await migrationClient.query(migrations[path]);
+          await migrationClient.query("insert into _migrations (name) values ($1)", [name]);
+          await migrationClient.query("commit");
+        } catch (error) {
+          await migrationClient.query("rollback").catch(() => undefined);
+          throw error;
+        }
+      }
+    } finally {
+      migrationClient.release();
+    }
     const run: Run = async <T>(text: string, params: unknown[]) => {
       const res = await pool.query(text, params);
       return res.rows as T[];

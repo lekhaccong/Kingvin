@@ -78,12 +78,18 @@ const authDisabled = env("VITE_AUTH_ENABLED") === "false";
 // otherwise fall back to the shared live-preview client, which the broker accepts
 // for any `*.grok-sandbox.com` callback (see `./preview`).
 const grokIssuer = env("GROK_AUTH_ISSUER") ?? GROK_ISSUER_DEFAULT;
-const grokClientId = env("GROK_AUTH_CLIENT_ID") ?? PREVIEW_CLIENT_ID;
-const grokClientSecret = env("GROK_AUTH_CLIENT_SECRET") ?? PREVIEW_CLIENT_SECRET;
+const explicitGrokClientId = env("GROK_AUTH_CLIENT_ID");
+const explicitGrokClientSecret = env("GROK_AUTH_CLIENT_SECRET");
+const explicitBaseURL = env("BETTER_AUTH_URL");
+const isPreviewAuth = !explicitBaseURL;
+const grokClientId = explicitGrokClientId ?? (isPreviewAuth ? PREVIEW_CLIENT_ID : undefined);
+const grokClientSecret =
+  explicitGrokClientSecret ?? (isPreviewAuth ? PREVIEW_CLIENT_SECRET : undefined);
 
 /** True when federated sign-in is active (real auth is enforced). */
-export const authConfigured =
-  !authDisabled && Boolean(grokClientId && grokClientSecret);
+export const authConfigured = !authDisabled;
+export const grokOAuthConfigured =
+  authConfigured && Boolean(grokClientId && grokClientSecret);
 
 // This app's own Better Auth origin. When deployed the deployer injects the
 // public URL. In the sandbox live preview there's no fixed URL (each preview gets
@@ -91,7 +97,6 @@ export const authConfigured =
 // it derives the origin per-request from the (proxied) host, validated against the
 // preview allowlist, which makes the OAuth `redirect_uri` the concrete preview URL
 // the broker's preview client accepts.
-const explicitBaseURL = env("BETTER_AUTH_URL");
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
 const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
@@ -150,7 +155,7 @@ export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
 
 // Built separately so the `betterAuth({...})` call stays easy to edit without
 // breaking brackets (models often trip on the conditional plugin spread).
-const grokOAuthPlugin = authConfigured
+const grokOAuthPlugin = grokOAuthConfigured
   ? genericOAuth({
       config: GROK_PROVIDERS.map(({ providerId, idp }) => ({
         providerId,

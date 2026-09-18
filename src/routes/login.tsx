@@ -1,6 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
+import {
+  GROK_PROVIDERS,
+  authClient,
+  authEnabled,
+  grokOAuthEnabled,
+  signIn,
+} from "@/lib/auth/client";
 import { ClubMark } from "@/components/club/mark";
 import { Disclaimer } from "@/components/club/disclaimer";
 import { Button } from "@/components/ui/button";
@@ -59,7 +65,7 @@ function Login() {
 
         {authEnabled ? (
           <div className="mt-6 space-y-5">
-            <div className="space-y-2">
+            {grokOAuthEnabled ? <div className="space-y-2">
               {GROK_PROVIDERS.map((p) => (
                 <Button
                   key={p.providerId}
@@ -71,10 +77,10 @@ function Login() {
                   Tiếp tục với {p.label}
                 </Button>
               ))}
-            </div>
-            <p className="text-center text-xs uppercase tracking-[0.18em] text-subtle">
+            </div> : null}
+            {grokOAuthEnabled ? <p className="text-center text-xs uppercase tracking-[0.18em] text-subtle">
               hoặc email
-            </p>
+            </p> : null}
             <form className="space-y-3" onSubmit={onEmail}>
               {mode === "up" ? (
                 <Input

@@ -37,6 +37,11 @@ export const authClient = createAuthClient({
  */
 export const authEnabled = import.meta.env.VITE_AUTH_ENABLED !== "false";
 
+/** OAuth broker buttons are opt-in outside the Grok preview. */
+export const grokOAuthEnabled =
+  import.meta.env.VITE_GROK_OAUTH_ENABLED === "true" ||
+  (typeof window !== "undefined" && window.location.hostname.endsWith(".grok-sandbox.com"));
+
 /** The upstream providers to render sign-in buttons for. */
 export { GROK_PROVIDERS };
 

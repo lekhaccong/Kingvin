@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kingvin}
+      POSTGRES_USER: ${POSTGRES_USER:-kingvin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - kingvin_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kingvin} -d ${POSTGRES_DB:-kingvin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [kingvin_internal]
+
+  app:
+    build:
+      context: .
+      args:
+        VITE_AUTH_ENABLED: "true"
+        VITE_GROK_OAUTH_ENABLED: "false"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 8081
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kingvin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-kingvin}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:8081}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env}
+      VITE_AUTH_ENABLED: "true"
+    ports:
+      - "127.0.0.1:8081:8081"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8081/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [kingvin_internal]
+
+volumes:
+  kingvin_postgres:
+
+networks:
+  kingvin_internal:

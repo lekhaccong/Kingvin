@@ -1,0 +1,13 @@
+.git
+.github
+.grok
+.vercel
+.output
+android
+artifacts
+backups
+node_modules
+screenshots
+.env
+*.zip
+*.apk
