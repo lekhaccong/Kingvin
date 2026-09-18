@@ -56,12 +56,10 @@ export function settleTaiXiu(
   p: TaiXiuPayload,
 ): SettleResult {
   if (market === "tai" || market === "xiu") {
-    if (p.triple) return { status: "push", payout: amount };
     if (market === p.side) return { status: "won", payout: amount * 2 };
     return { status: "lost", payout: 0 };
   }
   if (market === "chan" || market === "le") {
-    if (p.triple) return { status: "push", payout: amount };
     const even = market === "chan";
     if (p.even === even) return { status: "won", payout: amount * 2 };
     return { status: "lost", payout: 0 };
