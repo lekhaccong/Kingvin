@@ -8,12 +8,7 @@ import {
   settleBet,
   type GamePayload,
 } from "./rules";
-import {
-  creditPayoutWithSql,
-  debitBetWithSql,
-  ensureWallet,
-  getBalance,
-} from "./wallet";
+import { creditPayout, debitBet, ensureWallet, getBalance } from "./wallet";
 
 export type RoundRow = {
   id: number;
@@ -35,6 +30,7 @@ export type BetRow = {
 };
 
 export type PotMap = Record<string, number>;
+export type PlayerCountMap = Record<string, number>;
 
 export type GameSnapshot = {
   game: GameId;
@@ -46,6 +42,7 @@ export type GameSnapshot = {
   resultMs: number;
   payload: GamePayload | null;
   pots: PotMap;
+  playerCounts: PlayerCountMap;
   history: GamePayload[];
   serverNow: number;
 };
@@ -152,60 +149,13 @@ async function settleRound(row: RoundRow): Promise<RoundRow> {
   const frozen = await freezeResult(row);
   if (!frozen.payload) return frozen;
   const sql = await getSql();
-  const completed = await sql.transaction(async (tx) => {
-    const claimed = await tx<RoundRow>`
-      update game_rounds
-      set settled = true, status = ${"result"}
-      where id = ${frozen.id} and settled = false
-      returning id, game, started_at, bet_ms, lock_ms, result_ms, status, payload, settled
-    `;
-    const winner = claimed[0] ? wrapRound(claimed[0]) : null;
-    if (!winner) return null;
-    const openBets = await tx<{
-      id: number;
-      user_id: string;
-      market: string;
-      amount: number;
-    }>`
-      select id, user_id, market, amount from bets
-      where round_id = ${winner.id} and status = 'open'
-      order by id
-    `;
-    for (const bet of openBets) {
-      const result = settleBet(
-        winner.game,
-        bet.market,
-        Number(bet.amount),
-        winner.payload!,
-      );
-      await tx`
-        update bets
-        set status = ${result.status}, payout = ${result.payout}
-        where id = ${bet.id} and status = 'open'
-      `;
-      if (result.status === "won" && result.payout > 0) {
-        await creditPayoutWithSql(tx, {
-          userId: bet.user_id,
-          amount: result.payout,
-          type: "payout",
-          game: winner.game,
-          roundId: winner.id,
-          market: bet.market,
-        });
-      } else if (result.status === "push" && result.payout > 0) {
-        await creditPayoutWithSql(tx, {
-          userId: bet.user_id,
-          amount: result.payout,
-          type: "refund",
-          game: winner.game,
-          roundId: winner.id,
-          market: bet.market,
-        });
-      }
-    }
-    return { winner, betCount: openBets.length };
-  });
-  const winner = completed?.winner ?? null;
+  const claimed = await sql<RoundRow>`
+    update game_rounds
+    set settled = true, status = ${"result"}
+    where id = ${frozen.id} and settled = false
+    returning id, game, started_at, bet_ms, lock_ms, result_ms, status, payload, settled
+  `;
+  const winner = claimed[0] ? wrapRound(claimed[0]) : null;
   if (!winner) {
     const again = await sql<RoundRow>`
       select id, game, started_at, bet_ms, lock_ms, result_ms, status, payload, settled
@@ -213,12 +163,53 @@ async function settleRound(row: RoundRow): Promise<RoundRow> {
     `;
     return again[0] ? wrapRound(again[0]) : frozen;
   }
+  const openBets = await sql<{
+    id: number;
+    user_id: string;
+    market: string;
+    amount: number;
+  }>`
+    select id, user_id, market, amount from bets
+    where round_id = ${winner.id} and status = 'open'
+  `;
+  for (const bet of openBets) {
+    const result = settleBet(
+      winner.game,
+      bet.market,
+      Number(bet.amount),
+      winner.payload!,
+    );
+    await sql`
+      update bets
+      set status = ${result.status}, payout = ${result.payout}
+      where id = ${bet.id} and status = 'open'
+    `;
+    if (result.status === "won" && result.payout > 0) {
+      await creditPayout({
+        userId: bet.user_id,
+        amount: result.payout,
+        type: "payout",
+        game: winner.game,
+        roundId: winner.id,
+        market: bet.market,
+      });
+    } else if (result.status === "push" && result.payout > 0) {
+      await creditPayout({
+        userId: bet.user_id,
+        amount: result.payout,
+        type: "refund",
+        game: winner.game,
+        roundId: winner.id,
+        market: bet.market,
+      });
+    }
+  }
   log("info", {
     module: "engine",
     event: "round_settled",
     game: winner.game,
     roundId: winner.id,
-    bets: completed?.betCount ?? 0,
+    bets: openBets.length,
     payload: winner.payload,
   });
   return winner;
@@ -282,6 +273,18 @@ async function potsFor(roundId: number): Promise<PotMap> {
   return pots;
 }
 
+async function playerCountsFor(roundId: number): Promise<PlayerCountMap> {
+  const sql = await getSql();
+  const rows = await sql<{ market: string; total: number }>`
+    select market, count(distinct user_id)::int as total
+    from bets where round_id = ${roundId}
+    group by market
+  `;
+  const counts: PlayerCountMap = {};
+  for (const r of rows) counts[r.market] = Number(r.total);
+  return counts;
+}
+
 async function historyFor(game: GameId, limit = 24): Promise<GamePayload[]> {
   const sql = await getSql();
   const rows = await sql<{ payload: GamePayload }>`
@@ -317,6 +320,7 @@ export async function snapshot(
     resultMs: row.result_ms,
     payload: showPayload,
     pots: await potsFor(row.id),
+    playerCounts: await playerCountsFor(row.id),
     history: await historyFor(game),
     serverNow: nowMs,
   };
@@ -380,33 +384,29 @@ export async function placeBet(opts: {
     return { ok: true, snapshot: await playerSnapshot(game, userId) };
   }
 
+  const debit = await debitBet({
+    userId,
+    amount,
+    game,
+    roundId: view.roundId,
+    market,
+    requestId,
+  });
+  if (!debit.ok) {
+    return {
+      ok: false,
+      reason: debit.reason,
+      snapshot: await playerSnapshot(game, userId),
+    };
+  }
+
   try {
-    const debit = await sql.transaction(async (tx) => {
-      const result = await debitBetWithSql(tx, {
-        userId,
-        amount,
-        game,
-        roundId: view.roundId,
-        market,
-        requestId,
-      });
-      if (!result.ok) return result;
-      await tx`
-        insert into bets (user_id, game, round_id, market, amount, request_id)
-        values (${userId}, ${game}, ${view.roundId}, ${market}, ${amount}, ${requestId})
-        on conflict (user_id, round_id, market)
-        do update set amount = bets.amount + excluded.amount,
-                      request_id = excluded.request_id
-      `;
-      return result;
-    });
-    if (!debit.ok) {
-      return {
-        ok: false,
-        reason: debit.reason,
-        snapshot: await playerSnapshot(game, userId),
-      };
-    }
+    await sql`
+      insert into bets (user_id, game, round_id, market, amount, request_id)
+      values (${userId}, ${game}, ${view.roundId}, ${market}, ${amount}, ${requestId})
+      on conflict (user_id, round_id, market)
+      do update set amount = bets.amount + excluded.amount
+    `;
   } catch (err) {
     log("error", {
       module: "engine",
@@ -416,6 +416,14 @@ export async function placeBet(opts: {
       userId,
       message: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack : undefined,
+    });
+    await creditPayout({
+      userId,
+      amount,
+      type: "refund",
+      game,
+      roundId: view.roundId,
+      market: `failed:${market}:${requestId}`,
     });
     return {
       ok: false,
