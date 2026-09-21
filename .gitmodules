@@ -1,0 +1,4 @@
+[submodule "upstream/heidi-games"]
+	path = upstream/heidi-games
+	url = https://github.com/heidi-luong1109/games.git
+	branch = master
